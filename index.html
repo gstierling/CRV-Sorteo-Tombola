@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sorteo Kärcher</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --yellow:#FFED00;
+    --yellow-dark:#E6D200;
+    --black:#121212;
+    --anthracite:#2B2B2B;
+    --gray:#3C3C3C;
+    --light:#F2F2F2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Nunito',system-ui,sans-serif;
+    background:var(--black);
+    color:var(--light);
+    min-height:100dvh;
+    display:flex;flex-direction:column;
+    overflow-x:hidden;
+  }
+
+  /* ===== Header ===== */
+  header{
+    background:var(--yellow);
+    color:var(--black);
+    text-align:center;
+    padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+    position:relative;
+  }
+  header h1{
+    font-weight:900;
+    font-size:clamp(2.6rem,12vw,5.5rem);
+    letter-spacing:.06em;
+    line-height:1;
+  }
+  header p{
+    font-weight:800;
+    font-size:clamp(.9rem,3.6vw,1.3rem);
+    letter-spacing:.35em;
+    margin-top:4px;
+  }
+  .sound-btn{
+    position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top));
+    width:44px;height:44px;border-radius:50%;border:3px solid var(--black);
+    background:transparent;font-size:1.3rem;cursor:pointer;
+  }
+
+  main{
+    flex:1;display:flex;flex-direction:column;gap:16px;
+    padding:16px;width:100%;max-width:1100px;margin:0 auto;
+  }
+
+  /* ===== Range selector ===== */
+  .range{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  }
+  .field{
+    background:var(--anthracite);
+    border-radius:18px;padding:12px;
+    border:2px solid var(--gray);
+  }
+  .field label{
+    display:block;font-weight:900;color:var(--yellow);
+    font-size:clamp(.85rem,3.4vw,1.1rem);letter-spacing:.12em;
+    text-align:center;margin-bottom:8px;
+  }
+  .stepper{display:flex;align-items:stretch;gap:6px}
+  .stepper button{
+    flex:0 0 48px;border:none;border-radius:12px;
+    background:var(--gray);color:var(--yellow);
+    font-size:1.8rem;font-weight:900;cursor:pointer;
+  }
+  .stepper button:active{background:var(--yellow);color:var(--black)}
+  .stepper input{
+    flex:1;min-width:0;width:100%;
+    background:var(--black);color:var(--light);
+    border:2px solid var(--gray);border-radius:12px;
+    font-family:inherit;font-weight:900;text-align:center;
+    font-size:clamp(1.6rem,7vw,2.6rem);padding:8px 4px;
+    -moz-appearance:textfield;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stepper input:focus{outline:none;border-color:var(--yellow)}
+
+  .options{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--anthracite);border-radius:14px;padding:10px 14px;
+    font-weight:800;font-size:clamp(.9rem,3.6vw,1.05rem);
+  }
+  .switch{position:relative;width:58px;height:32px;flex:0 0 58px}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:var(--gray);border-radius:32px;transition:.2s;cursor:pointer}
+  .slider::before{content:"";position:absolute;width:24px;height:24px;left:4px;top:4px;background:var(--light);border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--yellow)}
+  .switch input:checked + .slider::before{transform:translateX(26px);background:var(--black)}
+
+  .msg{
+    text-align:center;font-weight:800;color:var(--yellow);
+    min-height:1.3em;font-size:clamp(.85rem,3.4vw,1rem);
+  }
+
+  /* ===== Display / reel ===== */
+  .stage{
+    position:relative;
+    flex:1;min-height:42vh;
+    background:var(--anthracite);
+    border-radius:26px;
+    border:6px solid var(--yellow);
+    overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+  }
+  .stage::before,.stage::after{
+    content:"";position:absolute;left:0;right:0;height:22%;z-index:3;pointer-events:none;
+  }
+  .stage::before{top:0;background:linear-gradient(var(--anthracite),transparent)}
+  .stage::after{bottom:0;background:linear-gradient(transparent,var(--anthracite))}
+  .stage.hide-fade::before,.stage.hide-fade::after{opacity:0}
+
+  .reel{
+    position:relative;width:100%;
+    height:var(--cell);
+    overflow:hidden;
+  }
+  .reel .num{
+    position:absolute;left:0;right:0;
+    height:var(--cell);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;color:var(--light);
+    font-size:var(--fs);line-height:1;
+    font-variant-numeric:tabular-nums;
+    will-change:transform;
+  }
+  .marker{
+    position:absolute;left:0;right:0;top:50%;height:var(--cell);
+    transform:translateY(-50%);
+    border-top:4px solid rgba(255,237,0,.55);
+    border-bottom:4px solid rgba(255,237,0,.55);
+    pointer-events:none;z-index:2;
+  }
+  .label-top{
+    position:absolute;top:14px;left:0;right:0;text-align:center;z-index:4;
+    font-weight:900;letter-spacing:.3em;color:var(--yellow);
+    font-size:clamp(.8rem,3.2vw,1.1rem);
+  }
+  .winner-badge{
+    position:absolute;bottom:16px;left:50%;
+    transform:translateX(-50%) scale(0);
+    background:var(--yellow);color:var(--black);
+    font-weight:900;letter-spacing:.12em;white-space:nowrap;
+    padding:10px 22px;border-radius:999px;z-index:5;
+    font-size:clamp(1rem,4.6vw,1.8rem);
+    box-shadow:0 6px 0 var(--yellow-dark);
+  }
+
+  /* Final state */
+  .stage.final{
+    background:var(--yellow);
+    animation:stageFlash .9s ease-out, stageGlow 1.6s ease-in-out .9s infinite;
+  }
+  .stage.final::before,.stage.final::after{opacity:0}
+  .stage.final .marker{opacity:0}
+  .stage.final .label-top{color:var(--black)}
+  .stage.final .reel .num{color:var(--black)}
+  .stage.final .reel .num.current{animation:numPop .9s cubic-bezier(.2,1.6,.4,1)}
+  .stage.final .winner-badge{
+    background:var(--black);color:var(--yellow);box-shadow:0 6px 0 #000;
+    animation:badgeIn .6s cubic-bezier(.2,1.6,.4,1) .35s forwards;
+  }
+  @keyframes stageFlash{
+    0%{background:#fff;transform:scale(1)}
+    15%{transform:scale(1.03)}
+    30%{background:var(--yellow)}
+    45%{background:#fff}
+    60%{background:var(--yellow);transform:scale(1)}
+  }
+  @keyframes stageGlow{
+    0%,100%{box-shadow:0 0 0 0 rgba(255,237,0,.0), 0 0 30px rgba(255,237,0,.5)}
+    50%{box-shadow:0 0 0 10px rgba(255,237,0,.25), 0 0 70px rgba(255,237,0,.9)}
+  }
+  @keyframes numPop{
+    0%{transform:scale(1)}
+    35%{transform:scale(1.35)}
+    100%{transform:scale(1)}
+  }
+  @keyframes badgeIn{
+    to{transform:translateX(-50%) scale(1)}
+  }
+
+  canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+
+  /* ===== Button ===== */
+  .draw-btn{
+    width:100%;
+    border:none;border-radius:22px;
+    background:var(--yellow);color:var(--black);
+    font-family:inherit;font-weight:900;
+    font-size:clamp(2rem,9vw,3.4rem);letter-spacing:.12em;
+    padding:16px 10px;cursor:pointer;
+    box-shadow:0 8px 0 var(--yellow-dark);
+    transition:transform .08s, box-shadow .08s;
+  }
+  .draw-btn:active:not(:disabled){transform:translateY(6px);box-shadow:0 2px 0 var(--yellow-dark)}
+  .draw-btn:disabled{background:var(--gray);color:#777;box-shadow:0 8px 0 #222;cursor:not-allowed}
+
+  /* ===== History ===== */
+  .history{
+    background:var(--anthracite);border-radius:18px;padding:12px 14px;
+  }
+  .history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .history-head h2{font-size:clamp(.95rem,3.8vw,1.15rem);font-weight:900;color:var(--yellow);letter-spacing:.12em}
+  .history-head button{
+    background:transparent;border:2px solid var(--gray);color:var(--light);
+    font-family:inherit;font-weight:800;border-radius:10px;padding:6px 12px;cursor:pointer;
+    font-size:.9rem;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    background:var(--black);border:2px solid var(--yellow);color:var(--yellow);
+    font-weight:900;border-radius:12px;padding:6px 12px;font-size:clamp(1rem,4vw,1.3rem);
+  }
+  .chip.latest{background:var(--yellow);color:var(--black)}
+  .empty{color:#888;font-weight:700}
+
+  footer{text-align:center;padding:10px 0 calc(12px + env(safe-area-inset-bottom));color:#666;font-weight:700;font-size:.85rem}
+
+  @media (min-width:900px){
+    main{display:grid;grid-template-columns:340px 1fr;grid-template-areas:
+      "controls stage" "controls btn" "history history";align-items:start}
+    .controls{grid-area:controls;display:flex;flex-direction:column;gap:12px}
+    .range{grid-template-columns:1fr}
+    .stage{grid-area:stage;min-height:56vh}
+    .draw-btn{grid-area:btn}
+    .history{grid-area:history}
+  }
+  .controls{display:flex;flex-direction:column;gap:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KÄRCHER</h1>
+  <p>SORTEO</p>
+  <button class="sound-btn" id="soundBtn" aria-label="Sonido">🔊</button>
+</header>
+
+<main>
+  <section class="controls">
+    <div class="range">
+      <div class="field">
+        <label for="minInput">NÚMERO MÁS BAJO</label>
+        <div class="stepper">
+          <button data-target="minInput" data-step="-1" aria-label="Restar">−</button>
+          <input id="minInput" type="number" inputmode="numeric" value="1">
+          <button data-target="minInput" data-step="1" aria-label="Sumar">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="maxInput">NÚMERO MÁS ALTO</label>
+        <div class="stepper">
+          <button data-target="maxInput" data-step="-1" aria-label="Restar">−</button>
+          <input id="maxInput" type="number" inputmode="numeric" value="100">
+          <button data-target="maxInput" data-step="1" aria-label="Sumar">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="options">
+      <span>No repetir números ya sorteados</span>
+      <label class="switch">
+        <input type="checkbox" id="noRepeat" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="label-top" id="labelTop">LISTO PARA SORTEAR</div>
+    <div class="marker"></div>
+    <div class="reel" id="reel">
+      <div class="num current" id="numA">?</div>
+      <div class="num" id="numB"></div>
+    </div>
+    <div class="winner-badge">¡NÚMERO GANADOR!</div>
+  </section>
+
+  <button class="draw-btn" id="drawBtn">SORTEO</button>
+
+  <section class="history">
+    <div class="history-head">
+      <h2>NÚMEROS SORTEADOS</h2>
+      <button id="resetBtn">Reiniciar</button>
+    </div>
+    <div class="chips" id="chips"><span class="empty">Aún no hay números sorteados</span></div>
+  </section>
+</main>
+
+<footer>Kärcher · CicloRecreoVía</footer>
+<canvas id="confetti"></canvas>
+
+<script>
+(() => {
+  const DURATION = 15000;        // 15 segundos exactos
+  const STEPS = 220;             // números que pasan por la ventana
+  const fmt = n => n.toLocaleString('es-CL');
+
+  const $ = id => document.getElementById(id);
+  const minInput = $('minInput'), maxInput = $('maxInput');
+  const stage = $('stage'), reel = $('reel');
+  const numA = $('numA'), numB = $('numB');
+  const drawBtn = $('drawBtn'), msg = $('msg'), labelTop = $('labelTop');
+  const chips = $('chips'), noRepeat = $('noRepeat');
+
+  let drawn = [];
+  let running = false;
+  let soundOn = true;
+
+  /* ---------- Tamaño del número según dígitos ---------- */
+  function sizeFor(maxVal){
+    const digits = Math.max(fmt(Math.abs(maxVal)).length, 1);
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const byW = (w * 0.9) / (digits * 0.62);
+    const byH = h * 0.62;
+    const fs = Math.max(48, Math.min(byW, byH));
+    stage.style.setProperty('--fs', fs + 'px');
+    stage.style.setProperty('--cell', (fs * 1.15) + 'px');
+    return fs * 1.15;
+  }
+  let cell = 0;
+  function layout(){ cell = sizeFor(parseInt(maxInput.value) || 100); }
+  window.addEventListener('resize', layout);
+
+  /* ---------- Steppers ---------- */
+  document.querySelectorAll('.stepper button').forEach(b => {
+    b.addEventListener('click', () => {
+      if (running) return;
+      const inp = $(b.dataset.target);
+      inp.value = (parseInt(inp.value) || 0) + parseInt(b.dataset.step);
+      onRangeChange();
+    });
+  });
+  [minInput, maxInput].forEach(i => i.addEventListener('input', onRangeChange));
+  function onRangeChange(){ validate(); layout(); }
+
+  function validate(){
+    const lo = parseInt(minInput.value), hi = parseInt(maxInput.value);
+    if (isNaN(lo) || isNaN(hi)) { msg.textContent = 'Ingresa ambos números'; return null; }
+    if (lo >= hi) { msg.textContent = 'El número más alto debe ser mayor que el más bajo'; return null; }
+    const pool = available(lo, hi);
+    if (pool.length === 0) { msg.textContent = 'Ya salieron todos los números del rango'; return null; }
+    msg.textContent = `${fmt(pool.length)} números participan del sorteo`;
+    return { lo, hi, pool };
+  }
+  function available(lo, hi){
+    const used = noRepeat.checked ? new Set(drawn) : new Set();
+    const total = hi - lo + 1;
+    if (total > 2000000) return { length: total - used.size, lo, hi, used, big: true };
+    const arr = [];
+    for (let n = lo; n <= hi; n++) if (!used.has(n)) arr.push(n);
+    return arr;
+  }
+  noRepeat.addEventListener('change', validate);
+
+  /* ---------- Aleatoriedad criptográfica ---------- */
+  function randInt(lo, hi){
+    const range = hi - lo + 1;
+    const buf = new Uint32Array(1);
+    const limit = Math.floor(0xFFFFFFFF / range) * range;
+    let x;
+    do { crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+    return lo + (x % range);
+  }
+  function pickWinner(lo, hi, pool){
+    if (Array.isArray(pool)) return pool[randInt(0, pool.length - 1)];
+    let n; do { n = randInt(lo, hi); } while (pool.used.has(n)); return n;
+  }
+
+  /* ---------- Sonido ---------- */
+  let ctx = null;
+  function audio(){ if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function tick(progress){
+    if (!soundOn) return;
+    const a = audio(), o = a.createOscillator(), g = a.createGain();
+    o.type = 'square';
+    o.frequency.value = 900 - progress * 400;
+    g.gain.setValueAtTime(0.06, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.05);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + 0.06);
+  }
+  function fanfare(){
+    if (!soundOn) return;
+    const a = audio();
+    [523, 659, 784, 1047].forEach((f, i) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = a.currentTime + i * 0.13;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (i === 3 ? 0.9 : 0.25));
+      o.connect(g).connect(a.destination);
+      o.start(t); o.stop(t + 1);
+    });
+  }
+  $('soundBtn').addEventListener('click', () => {
+    soundOn = !soundOn; $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  });
+
+  /* ---------- Curva de ralentización ---------- */
+  // easeOutQuint: arranca muy rápido y frena cada vez más hasta detenerse
+  const ease = t => 1 - Math.pow(1 - t, 5);
+
+  /* ---------- Sorteo ---------- */
+  drawBtn.addEventListener('click', () => {
+    if (running) return;
+    const v = validate();
+    if (!v) return;
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+    audio();
+    start(v);
+  });
+
+  function start({ lo, hi, pool }){
+    running = true;
+    drawBtn.disabled = true;
+    drawBtn.textContent = 'SORTEANDO…';
+    [minInput, maxInput, noRepeat].forEach(e => e.disabled = true);
+    stage.classList.remove('final');
+    labelTop.textContent = 'SORTEANDO…';
+    layout();
+
+    const winner = pickWinner(lo, hi, pool);
+    // Secuencia de números que pasan por el rodillo; el último es el ganador
+    const seq = [];
+    for (let i = 0; i < STEPS; i++) seq.push(randInt(lo, hi));
+    seq.push(winner);
+    for (let i = 1; i < seq.length; i++) {
+      if (seq[i] === seq[i - 1] && hi > lo && i !== seq.length - 1) seq[i] = seq[i] === hi ? lo : seq[i] + 1;
+    }
+    if (seq[STEPS - 1] === winner) seq[STEPS - 1] = winner === hi ? lo : winner + 1;
+
+    const t0 = performance.now();
+    let lastIdx = -1;
+
+    function frame(now){
+      const t = Math.min((now - t0) / DURATION, 1);
+      const p = ease(t) * STEPS;
+      const idx = Math.min(Math.floor(p), STEPS);
+      const frac = idx >= STEPS ? 0 : p - idx;
+
+      if (idx !== lastIdx) {
+        numA.textContent = fmt(seq[idx]);
+        numB.textContent = fmt(seq[Math.min(idx + 1, STEPS)]);
+        if (lastIdx !== -1) tick(t);
+        lastIdx = idx;
+      }
+      // efecto rodillo: el número actual sube y entra el siguiente desde abajo
+      numA.style.transform = `translateY(${-frac * cell}px)`;
+      numB.style.transform = `translateY(${(1 - frac) * cell}px)`;
+
+      if (t < 1) requestAnimationFrame(frame);
+      else finish(winner);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(winner){
+    numA.textContent = fmt(winner);
+    numA.style.transform = 'translateY(0)';
+    numB.style.transform = `translateY(${cell}px)`;
+    // reinicia animación final
+    void stage.offsetWidth;
+    stage.classList.add('final');
+    labelTop.textContent = 'NÚMERO DEFINITIVO';
+    if (navigator.vibrate) navigator.vibrate([120, 60, 220]);
+    fanfare();
+    confetti();
+
+    drawn.push(winner);
+    renderHistory();
+
+    running = false;
+    drawBtn.disabled = false;
+    drawBtn.textContent = 'SORTEO';
+    [minInput, maxInput, noRepeat].forEach(e => e.disabled = false);
+    validate();
+  }
+
+  function renderHistory(){
+    if (!drawn.length) { chips.innerHTML = '<span class="empty">Aún no hay números sorteados</span>'; return; }
+    chips.innerHTML = drawn.slice().reverse()
+      .map((n, i) => `<span class="chip${i === 0 ? ' latest' : ''}">${fmt(n)}</span>`).join('');
+  }
+
+  $('resetBtn').addEventListener('click', () => {
+    if (running) return;
+    if (drawn.length && !confirm('¿Borrar todos los números sorteados?')) return;
+    drawn = [];
+    renderHistory();
+    stage.classList.remove('final');
+    numA.textContent = '?';
+    labelTop.textContent = 'LISTO PARA SORTEAR';
+    validate();
+  });
+
+  /* ---------- Confeti ---------- */
+  const cv = $('confetti'), cx = cv.getContext('2d');
+  function confetti(){
+    cv.width = innerWidth; cv.height = innerHeight;
+    const colors = ['#FFED00', '#121212', '#FFFFFF', '#E6D200', '#3C3C3C'];
+    const parts = Array.from({ length: 220 }, () => ({
+      x: innerWidth / 2 + (Math.random() - .5) * innerWidth * .3,
+      y: innerHeight * .45,
+      vx: (Math.random() - .5) * 22,
+      vy: -Math.random() * 22 - 6,
+      w: 8 + Math.random() * 10, h: 5 + Math.random() * 8,
+      r: Math.random() * Math.PI, vr: (Math.random() - .5) * .4,
+      c: colors[Math.floor(Math.random() * colors.length)]
+    }));
+    const end = performance.now() + 4500;
+    (function loop(now){
+      cx.clearRect(0, 0, cv.width, cv.height);
+      parts.forEach(p => {
+        p.vy += .45; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r);
+        cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        cx.restore();
+      });
+      if (now < end) requestAnimationFrame(loop);
+      else cx.clearRect(0, 0, cv.width, cv.height);
+    })(performance.now());
+  }
+
+  layout();
+  validate();
+})();
+</script>
+</body>
+</html>
