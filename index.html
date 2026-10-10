@@ -237,13 +237,9 @@
   footer{text-align:center;padding:10px 0 calc(12px + env(safe-area-inset-bottom));color:#666;font-weight:700;font-size:.85rem}
 
   @media (min-width:900px){
-    main{display:grid;grid-template-columns:340px 1fr;grid-template-areas:
-      "controls stage" "controls btn" "history history";align-items:start}
-    .controls{grid-area:controls;display:flex;flex-direction:column;gap:12px}
-    .range{grid-template-columns:1fr}
-    .stage{grid-area:stage;min-height:56vh}
-    .draw-btn{grid-area:btn}
-    .history{grid-area:history}
+    main{max-width:900px}
+    .stage{min-height:56vh}
+    .range{grid-template-columns:1fr 1fr}
   }
   .controls{display:flex;flex-direction:column;gap:12px}
   .params{display:none;flex-direction:column;gap:12px}
@@ -267,37 +263,7 @@
 </header>
 
 <main>
-  <section class="controls">
-    <button class="params-btn" id="paramsBtn" aria-expanded="false">Mostrar parámetros</button>
-    <div class="params" id="params">
-    <div class="range">
-      <div class="field">
-        <label for="minInput">NÚMERO MÁS BAJO</label>
-        <div class="stepper">
-          <button data-target="minInput" data-step="-1" aria-label="Restar">−</button>
-          <input id="minInput" type="number" inputmode="numeric" value="1">
-          <button data-target="minInput" data-step="1" aria-label="Sumar">+</button>
-        </div>
-      </div>
-      <div class="field">
-        <label for="maxInput">NÚMERO MÁS ALTO</label>
-        <div class="stepper">
-          <button data-target="maxInput" data-step="-1" aria-label="Restar">−</button>
-          <input id="maxInput" type="number" inputmode="numeric" value="100">
-          <button data-target="maxInput" data-step="1" aria-label="Sumar">+</button>
-        </div>
-      </div>
-    </div>
-    <div class="options">
-      <span>No repetir números ya sorteados</span>
-      <label class="switch">
-        <input type="checkbox" id="noRepeat" checked>
-        <span class="slider"></span>
-      </label>
-    </div>
-    </div>
-    <div class="msg" id="msg"></div>
-  </section>
+  <div class="msg" id="msg"></div>
 
   <section class="stage" id="stage">
     <div class="label-top" id="labelTop">LISTO PARA SORTEAR</div>
@@ -318,6 +284,37 @@
     </div>
     <div class="chips" id="chips"><span class="empty">Aún no hay números sorteados</span></div>
   </section>
+
+  <section class="controls" id="controls">
+    <div class="params" id="params">
+      <div class="range">
+        <div class="field">
+          <label for="minInput">NÚMERO MÁS BAJO</label>
+          <div class="stepper">
+            <button data-target="minInput" data-step="-1" aria-label="Restar">−</button>
+            <input id="minInput" type="number" inputmode="numeric" value="1">
+            <button data-target="minInput" data-step="1" aria-label="Sumar">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="maxInput">NÚMERO MÁS ALTO</label>
+          <div class="stepper">
+            <button data-target="maxInput" data-step="-1" aria-label="Restar">−</button>
+            <input id="maxInput" type="number" inputmode="numeric" value="100">
+            <button data-target="maxInput" data-step="1" aria-label="Sumar">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="options">
+        <span>No repetir números ya sorteados</span>
+        <label class="switch">
+          <input type="checkbox" id="noRepeat" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <button class="params-btn" id="paramsBtn" aria-expanded="false">Mostrar parámetros</button>
+  </section>
 </main>
 
 <footer>Kärcher · CicloRecreoVía</footer>
@@ -327,7 +324,7 @@
 (() => {
   const DURATION = 15000;        // 15 segundos exactos
   const STEPS = 220;             // números que pasan por la ventana
-  const fmt = n => n.toLocaleString('es-CL');
+  const fmt = n => (typeof n === 'number' && isFinite(n)) ? n.toLocaleString('es-CL') : '';
 
   const $ = id => document.getElementById(id);
   const minInput = $('minInput'), maxInput = $('maxInput');
@@ -394,6 +391,7 @@
     paramsBtn.setAttribute('aria-expanded', open);
     paramsBtn.textContent = open ? 'Ocultar parámetros' : 'Mostrar parámetros';
     layout();
+    if (open) setTimeout(() => paramsBtn.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50);
   });
 
   /* ---------- Aleatoriedad criptográfica ---------- */
@@ -412,20 +410,30 @@
 
   /* ---------- Sonido ---------- */
   let ctx = null;
-  function audio(){ if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function audio(){
+    try {
+      if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ctx = new AC(); }
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    } catch (e) { ctx = null; }
+    return ctx;
+  }
   function tick(progress){
     if (!soundOn) return;
-    const a = audio(), o = a.createOscillator(), g = a.createGain();
+    try {
+    const a = audio(); if (!a) return;
+    const o = a.createOscillator(), g = a.createGain();
     o.type = 'square';
     o.frequency.value = 900 - progress * 400;
     g.gain.setValueAtTime(0.06, a.currentTime);
     g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.05);
     o.connect(g).connect(a.destination);
     o.start(); o.stop(a.currentTime + 0.06);
+    } catch (e) {}
   }
   function fanfare(){
     if (!soundOn) return;
-    const a = audio();
+    try {
+    const a = audio(); if (!a) return;
     [523, 659, 784, 1047].forEach((f, i) => {
       const o = a.createOscillator(), g = a.createGain();
       o.type = 'triangle'; o.frequency.value = f;
@@ -436,6 +444,7 @@
       o.connect(g).connect(a.destination);
       o.start(t); o.stop(t + 1);
     });
+    } catch (e) {}
   }
   $('soundBtn').addEventListener('click', () => {
     soundOn = !soundOn; $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
@@ -450,7 +459,6 @@
     if (running) return;
     const v = validate();
     if (!v) return;
-    if (ctx && ctx.state === 'suspended') ctx.resume();
     audio();
     start(v);
   });
@@ -474,27 +482,39 @@
     }
     if (seq[STEPS - 1] === winner) seq[STEPS - 1] = winner === hi ? lo : winner + 1;
 
-    const t0 = performance.now();
+    let t0 = null;
     let lastIdx = -1;
 
+    // Muestra el primer número de inmediato (nunca queda el "?")
+    numA.textContent = fmt(seq[0]);
+    numB.textContent = fmt(seq[1]);
+    numA.style.transform = 'translateY(0)';
+    numB.style.transform = `translateY(${cell}px)`;
+
     function frame(now){
-      const t = Math.min((now - t0) / DURATION, 1);
-      const p = ease(t) * STEPS;
-      const idx = Math.min(Math.floor(p), STEPS);
-      const frac = idx >= STEPS ? 0 : p - idx;
+      try {
+        if (t0 === null) t0 = now;                       // reloj tomado del propio cuadro
+        const t = Math.max(0, Math.min((now - t0) / DURATION, 1));
+        const p = ease(t) * STEPS;
+        const idx = Math.max(0, Math.min(Math.floor(p), STEPS));
+        const frac = idx >= STEPS ? 0 : p - idx;
 
-      if (idx !== lastIdx) {
-        numA.textContent = fmt(seq[idx]);
-        numB.textContent = fmt(seq[Math.min(idx + 1, STEPS)]);
-        if (lastIdx !== -1) tick(t);
-        lastIdx = idx;
+        if (idx !== lastIdx) {
+          numA.textContent = fmt(seq[idx]);
+          numB.textContent = fmt(seq[Math.min(idx + 1, STEPS)]);
+          if (lastIdx !== -1) tick(t);
+          lastIdx = idx;
+        }
+        // efecto rodillo: el número actual sube y entra el siguiente desde abajo
+        numA.style.transform = `translateY(${-frac * cell}px)`;
+        numB.style.transform = `translateY(${(1 - frac) * cell}px)`;
+
+        if (t < 1) requestAnimationFrame(frame);
+        else finish(winner);
+      } catch (e) {
+        console.error(e);
+        finish(winner);                                   // ante cualquier error, igual entrega el ganador
       }
-      // efecto rodillo: el número actual sube y entra el siguiente desde abajo
-      numA.style.transform = `translateY(${-frac * cell}px)`;
-      numB.style.transform = `translateY(${(1 - frac) * cell}px)`;
-
-      if (t < 1) requestAnimationFrame(frame);
-      else finish(winner);
     }
     requestAnimationFrame(frame);
   }
@@ -506,9 +526,9 @@
     // reinicia animación final
     void stage.offsetWidth;
     stage.classList.add('final');
-    if (navigator.vibrate) navigator.vibrate([120, 60, 220]);
+    try { if (navigator.vibrate) navigator.vibrate([120, 60, 220]); } catch (e) {}
     fanfare();
-    confetti();
+    try { confetti(); } catch (e) {}
 
     drawn.push(winner);
     renderHistory();
