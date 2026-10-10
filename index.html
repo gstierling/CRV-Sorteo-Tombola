@@ -150,7 +150,7 @@
     font-size:clamp(.8rem,3.2vw,1.1rem);
   }
   .winner-badge{
-    position:absolute;bottom:16px;left:50%;
+    position:absolute;top:16px;left:50%;
     transform:translateX(-50%) scale(0);
     background:var(--yellow);color:var(--black);
     font-weight:900;letter-spacing:.12em;white-space:nowrap;
@@ -166,7 +166,7 @@
   }
   .stage.final::before,.stage.final::after{opacity:0}
   .stage.final .marker{opacity:0}
-  .stage.final .label-top{color:var(--black)}
+  .stage.final .label-top{display:none}
   .stage.final .reel .num{color:var(--black)}
   .stage.final .reel .num.current{animation:numPop .9s cubic-bezier(.2,1.6,.4,1)}
   .stage.final .winner-badge{
@@ -240,18 +240,30 @@
     .history{grid-area:history}
   }
   .controls{display:flex;flex-direction:column;gap:12px}
+  .params{display:none;flex-direction:column;gap:12px}
+  .params.open{display:flex;animation:paramsIn .25s ease-out}
+  @keyframes paramsIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .params-btn{
+    width:100%;background:var(--anthracite);color:var(--yellow);
+    border:2px solid var(--yellow);border-radius:14px;
+    font-family:inherit;font-weight:900;letter-spacing:.08em;
+    font-size:clamp(1rem,4.2vw,1.2rem);padding:12px;cursor:pointer;
+  }
+  .params-btn.open{background:var(--yellow);color:var(--black)}
+  .params-btn:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
 
 <header>
   <h1>KÄRCHER</h1>
-  <p>SORTEO</p>
   <button class="sound-btn" id="soundBtn" aria-label="Sonido">🔊</button>
 </header>
 
 <main>
   <section class="controls">
+    <button class="params-btn" id="paramsBtn" aria-expanded="false">Mostrar parámetros</button>
+    <div class="params" id="params">
     <div class="range">
       <div class="field">
         <label for="minInput">NÚMERO MÁS BAJO</label>
@@ -276,6 +288,7 @@
         <input type="checkbox" id="noRepeat" checked>
         <span class="slider"></span>
       </label>
+    </div>
     </div>
     <div class="msg" id="msg"></div>
   </section>
@@ -366,6 +379,16 @@
     return arr;
   }
   noRepeat.addEventListener('change', validate);
+
+  /* ---------- Mostrar / ocultar parámetros ---------- */
+  const paramsBtn = $('paramsBtn'), params = $('params');
+  paramsBtn.addEventListener('click', () => {
+    const open = params.classList.toggle('open');
+    paramsBtn.classList.toggle('open', open);
+    paramsBtn.setAttribute('aria-expanded', open);
+    paramsBtn.textContent = open ? 'Ocultar parámetros' : 'Mostrar parámetros';
+    layout();
+  });
 
   /* ---------- Aleatoriedad criptográfica ---------- */
   function randInt(lo, hi){
@@ -477,7 +500,6 @@
     // reinicia animación final
     void stage.offsetWidth;
     stage.classList.add('final');
-    labelTop.textContent = 'NÚMERO DEFINITIVO';
     if (navigator.vibrate) navigator.vibrate([120, 60, 220]);
     fanfare();
     confetti();
